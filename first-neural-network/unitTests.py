@@ -2,6 +2,8 @@ import unittest
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
+from my_answers import iterations, learning_rate, hidden_nodes, output_nodes
 
 data_path = 'Bike-Sharing-Dataset/hour.csv'
 
@@ -61,53 +63,103 @@ test_w_h_o = np.array([[0.3],
                        [-0.1]])
 
 
-class TestMethods(unittest.TestCase):
-    ##########
-    # Unit tests for data loading
-    ##########
+# class TestMethods(unittest.TestCase):
+#     ##########
+#     # Unit tests for data loading
+#     ##########
+#
+#     def test_data_path(self):
+#         # Test that file path to dataset has been unaltered
+#         self.assertTrue(data_path.lower() == 'bike-sharing-dataset/hour.csv')
+#
+#     def test_data_loaded(self):
+#         # Test that data frame loaded
+#         self.assertTrue(isinstance(rides, pd.DataFrame))
+#
+#     ##########
+#     # Unit tests for network functionality
+#     ##########
+#
+#     def test_activation(self):
+#         network = NeuralNetwork(3, 2, 1, 0.5)
+#         # Test that the activation function is a sigmoid
+#         self.assertTrue(np.all(network.activation_function(0.5) == 1 / (1 + np.exp(-0.5))))
+#
+#     def test_train(self):
+#         # Test that weights are updated correctly on training
+#         network = NeuralNetwork(3, 2, 1, 0.5)
+#         network.weights_input_to_hidden = test_w_i_h.copy()
+#         network.weights_hidden_to_output = test_w_h_o.copy()
+#
+#         network.train(inputs, targets)
+#         # print(network.run(network.weights_hidden_to_output));
+#         self.assertTrue(np.allclose(network.weights_hidden_to_output,
+#                                     np.array([[0.37275328],
+#                                               [-0.03172939]])))
+#         # print(network.run(network.weights_input_to_hidden));
+#         self.assertTrue(np.allclose(network.weights_input_to_hidden,
+#                                     np.array([[0.10562014, -0.20185996],
+#                                               [0.39775194, 0.50074398],
+#                                               [-0.29887597, 0.19962801]])))
+#
+#     def test_run(self):
+#         # Test correctness of run method
+#         network = NeuralNetwork(3, 2, 1, 0.5)
+#         network.weights_input_to_hidden = test_w_i_h.copy()
+#         network.weights_hidden_to_output = test_w_h_o.copy()
+#         # print(network.run(inputs));
+#         self.assertTrue(np.allclose(network.run(inputs), 0.09998924))
+#
+#
+# suite = unittest.TestLoader().loadTestsFromModule(TestMethods())
+# unittest.TextTestRunner().run(suite)
 
-    def test_data_path(self):
-        # Test that file path to dataset has been unaltered
-        self.assertTrue(data_path.lower() == 'bike-sharing-dataset/hour.csv')
 
-    def test_data_loaded(self):
-        # Test that data frame loaded
-        self.assertTrue(isinstance(rides, pd.DataFrame))
-
-    ##########
-    # Unit tests for network functionality
-    ##########
-
-    def test_activation(self):
-        network = NeuralNetwork(3, 2, 1, 0.5)
-        # Test that the activation function is a sigmoid
-        self.assertTrue(np.all(network.activation_function(0.5) == 1 / (1 + np.exp(-0.5))))
-
-    def test_train(self):
-        # Test that weights are updated correctly on training
-        network = NeuralNetwork(3, 2, 1, 0.5)
-        network.weights_input_to_hidden = test_w_i_h.copy()
-        network.weights_hidden_to_output = test_w_h_o.copy()
-
-        network.train(inputs, targets)
-        # print(network.run(network.weights_hidden_to_output));
-        self.assertTrue(np.allclose(network.weights_hidden_to_output,
-                                    np.array([[0.37275328],
-                                              [-0.03172939]])))
-        # print(network.run(network.weights_input_to_hidden));
-        self.assertTrue(np.allclose(network.weights_input_to_hidden,
-                                    np.array([[0.10562014, -0.20185996],
-                                              [0.39775194, 0.50074398],
-                                              [-0.29887597, 0.19962801]])))
-
-    def test_run(self):
-        # Test correctness of run method
-        network = NeuralNetwork(3, 2, 1, 0.5)
-        network.weights_input_to_hidden = test_w_i_h.copy()
-        network.weights_hidden_to_output = test_w_h_o.copy()
-        # print(network.run(inputs));
-        self.assertTrue(np.allclose(network.run(inputs), 0.09998924))
+####################
+### Set the hyperparameters in you myanswers.py file ###
+####################
 
 
-suite = unittest.TestLoader().loadTestsFromModule(TestMethods())
-unittest.TextTestRunner().run(suite)
+N_i = train_features.shape[1]
+network = NeuralNetwork(N_i, hidden_nodes, output_nodes, learning_rate)
+
+losses = {'train': [], 'validation': []}
+for ii in range(iterations):
+    # Go through a random batch of 128 records from the training data set
+    batch = np.random.choice(train_features.index, size=128)
+    X, y = train_features.ix[batch].values, train_targets.ix[batch]['cnt']
+
+    network.train(X, y)
+
+    # Printing out the training progress
+    train_loss = MSE(network.run(train_features).T, train_targets['cnt'].values)
+    val_loss = MSE(network.run(val_features).T, val_targets['cnt'].values)
+    sys.stdout.write("\rProgress: {:2.1f}".format(100 * ii / float(iterations)) \
+                     + "% ... Training loss: " + str(train_loss)[:5] \
+                     + " ... Validation loss: " + str(val_loss)[:5])
+    sys.stdout.flush()
+
+    losses['train'].append(train_loss)
+    losses['validation'].append(val_loss)
+
+
+plt.plot(losses['train'], label='Training loss')
+plt.plot(losses['validation'], label='Validation loss')
+plt.legend()
+_ = plt.ylim()
+
+
+fig, ax = plt.subplots(figsize=(8,4))
+
+mean, std = scaled_features['cnt']
+predictions = network.run(test_features).T*std + mean
+ax.plot(predictions[0], label='Prediction')
+ax.plot((test_targets['cnt']*std + mean).values, label='Data')
+ax.set_xlim(right=len(predictions))
+ax.legend()
+
+dates = pd.to_datetime(rides.ix[test_data.index]['dteday'])
+dates = dates.apply(lambda d: d.strftime('%b %d'))
+ax.set_xticks(np.arange(len(dates))[12::24])
+_ = ax.set_xticklabels(dates[12::24], rotation=45)
+
