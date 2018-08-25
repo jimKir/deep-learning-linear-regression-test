@@ -33,3 +33,4 @@ merged = single_familiy_home_transactions.merge(gp, how='inner', left_on='GRID_I
 print(merged.head())
 # #first feature of the shapefile
 # first = shape.next()
+
